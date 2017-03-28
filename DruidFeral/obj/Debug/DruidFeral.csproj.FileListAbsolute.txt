@@ -1,0 +1,5 @@
+I:\V3CCs\Druid\DruidFeral\DruidFeral\bin\Debug\DruidFeral.dll
+I:\V3CCs\Druid\DruidFeral\DruidFeral\bin\Debug\DruidFeral.pdb
+I:\V3CCs\Druid\DruidFeral\DruidFeral\obj\Debug\DruidFeral.dll
+I:\V3CCs\Druid\DruidFeral\DruidFeral\obj\Debug\DruidFeral.pdb
+I:\V3CCs\Druid\DruidFeral\DruidFeral\obj\Debug\DruidFeral.csprojResolveAssemblyReference.cache
