@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.ComponentModel.Composition;
 using ZzukBot.Constants;
@@ -6,11 +6,33 @@ using ZzukBot.ExtensionFramework.Classes;
 using ZzukBot.Game.Statics;
 using ZzukBot.Objects;
 
+/**
+ * to test: 
+ * test bandages,
+ * poisons,
+ * ranged pull,
+ * Food selection
+ * 
+ * 
+ * latest change: 
+ * combat distances
+ * 
+ *confirmed working:
+ * Kick all
+ * SnD / Evisc
+ * Riposte
+ * Racials/Blade Flurry/AR
+ * -> basically the full fighting arsenal.
+ * 
+ * 
+ * Huge credits to krycess' QuickDraw for all of this.
+ */
+
 [Export(typeof(CustomClass))]
 public class Rogue : CustomClass
 {
     bool useKick = true;
-    bool log = false;
+    bool log = true;
 
     public override void Dispose() { }
     public override bool Load() { return true; }
@@ -18,14 +40,51 @@ public class Rogue : CustomClass
     //Credits for the logger to baka
     public static void DebugMsg(string String)
     {
-        ZzukBot.ExtensionMethods.StringExtensions.Log("Debug: " + String, "CCLog.txt", true);
+        ZzukBot.ExtensionMethods.StringExtensions.Log("Debug: " + String, "RogueLog.txt", true);
         Lua.Instance.Execute("DEFAULT_CHAT_FRAME:AddMessage(\"DEBUG: " + String + "\");");
+    }
+
+    public bool HavePoison()
+    {
+        string poisonToUse = Inventory.Instance.GetLastItem(poisonList);
+        if (poisonToUse != "")
+            return true;
+        else return false;
+    }
+
+    public string[] poisonList =
+    {
+        "Instant Poison", "Instant Poison II", "Instant Poison III", "Instant Poison IV", "Instant Poison V", "Instant Poison VI"
+    };
+
+    public void EnchantPoison()
+    {
+        string poisonToUse = Inventory.Instance.GetLastItem(poisonList);
+        if (!Local.IsMainhandEnchanted())
+        {
+            Local.EnchantMainhandItem(poisonToUse);
+        }
+        if (!Local.IsOffhandEnchanted())
+        {
+            Local.EnchantOffhandItem(poisonToUse);
+        }
     }
 
     public override bool OnBuff()
     {//Buff TODO: add poisons
-
+        if (HavePoison() && (!Local.IsMainhandEnchanted() || !Local.IsOffhandEnchanted()))
+        {
+            EnchantPoison();
+            return false;
+        }
         return true;
+    }
+
+    public bool HaveBandage()
+    {
+        if (Inventory.Instance.GetLastItem(firstAidBandages) != "")
+            return true;
+        else return false;
     }
 
     public string[] firstAidBandages =
@@ -66,15 +125,18 @@ public class Rogue : CustomClass
     }
 
 
-    public string[] potNames = {"Minor Healing Potion", "Lesser Healing Potion", "Discolored Healing Potion", "Healing Potion", "Greater Healing Potion", "Superior Healing Potion", "Major Healing Potion"};
+    public string[] potNames = { "Minor Healing Potion", "Lesser Healing Potion", "Discolored Healing Potion", "Healing Potion", "Greater Healing Potion", "Superior Healing Potion", "Major Healing Potion" };
 
-   
+
     public void SelectHPotion()
     {
         string potToUse = Inventory.Instance.GetLastItem(potNames);
-        WoWItem Potion = Inventory.Instance.GetItem(potToUse);
-        if (Local.HealthPercent <= 20)
-            Potion.Use();
+        if (potToUse != "")
+        {
+            WoWItem Potion = Inventory.Instance.GetItem(potToUse);
+            if (Local.HealthPercent <= 20)
+                Potion.Use();
+        }
     }
 
 
@@ -116,16 +178,18 @@ public class Rogue : CustomClass
                 new int[] {150, 295,446,597,748,899},
                 new int[] {200, 332,502,672,842,1012},
             };
-    
+
 
     private bool ShouldWeEviscerate()
     {
         int rank = Spell.Instance.GetSpellRank("Eviscerate");
         int damage = 0;
         int comboPoints = Local.ComboPoints;
+        DebugMsg("Stats for Evis Calculation: Target Health: " + Target.Health + ", Rank: " + rank + ", calculated damage: " + damage);
         if (rank >= 1 && comboPoints >= 1)
         {
             damage = (EviscerateDamage[rank][comboPoints] + EviscerateDamage[rank][0]);
+            DebugMsg("Stats for Evis Calculation: Target Health: " + Target.Health + ", Rank: " + rank + ", calculated damage: " + damage);
             if (Target.Health <= damage)
                 return true;
         }
@@ -169,14 +233,11 @@ public class Rogue : CustomClass
         }
         return false;
     }
-    public override void OnFight()
-    {//Fight
+
+    public void GeneralCombat()
+    {
         int energy = Local.Energy;
         int comboPoint = Local.ComboPoints;
-        SelectHPotion();
-        Spell.Instance.Attack();
-        KickEnemy();
-        HandleMultipleEnemies();
         if (energy >= 10 && Riposte())
             Spell.Instance.Cast("Riposte");
         if (energy <= 20)
@@ -187,8 +248,10 @@ public class Rogue : CustomClass
         {
             if (Spell.Instance.GetSpellRank("Eviscerate") != 0)
             {
+                int eviscrank = Spell.GetSpellRank("Eviscerate");
+                DebugMsg("Checking for Eviscerate. Current Rank: " + eviscrank + ", CPs: " + comboPoint  );
                 if (ShouldWeEviscerate() || comboPoint == 5)
-                { 
+                {
                     Spell.Instance.Cast("Eviscerate");
                     return;
                 }
@@ -209,32 +272,50 @@ public class Rogue : CustomClass
         }
     }
 
-    public override void OnPull()
-    {//PreFight
-    // Todo: ranged pull?
-        //if (Target.DistanceToPlayer > 8 && Target.DistanceToPlayer < 27)
-        //{
-        //    if (log)
-        //        DebugMsg("Sufficient distance for ranged pulling");
-        //    Spell.Instance.StartRangedAttack();
-        //}
-        //if (Target.DistanceToPlayer < 8)
-            Spell.Instance.Attack();
-
-
+    public override void OnFight()
+    {//Fight
+        CombatDistance = 5;
+        int energy = Local.Energy;
+        int comboPoint = Local.ComboPoints;
+        SelectHPotion();
+        Spell.Instance.Attack();
+        KickEnemy();
+        HandleMultipleEnemies();
+        GeneralCombat();
     }
 
-    public override void OnRest()
-    {   //As mentioned before, resting should probably not be handled by the CC anymore. 
-        //if (Local.HealthPercent <= 50)
-        //{
-        //    if (Local.Race == "Night Elf" && Spell.Instance.IsSpellReady("Shadowmeld"))
-        //    {
-        //        SelectDrink();
-        //    }
-        //    return;
-
+    public override void OnPull()
+    {//PreFight
+        //if (Target.DistanceToPlayer > 8 && Target.DistanceToPlayer < 27)
+        //{//tbd: non hardcoded ranged pull cast, safety check on whether to ranged pull or melee pull
+        //    if (log)
+        //        DebugMsg("Sufficient distance for ranged pulling");
+        //    CombatDistance = 25;
+        //    if (Local.Casting == 0 && Local.Channeling == 0 && Spell.IsSpellReady("Sinister Strike"))
+        //    Spell.Instance.Cast("Shoot Bow");
         //}
+        //else if (Target.DistanceToPlayer < 8)
+            CombatDistance = 5;
+            Spell.Instance.Attack();
+    }
+    public override void OnRest()
+    {
+        if (Local.HealthPercent < 50)
+        { 
+        if (HaveBandage() && !Local.GotDebuff("Recently Bandaged") && Local.Channeling == 0)
+            SelectBandage();
+
+        //As mentioned before, resting should probably not be handled by the CC anymore. 
+        if (Local.Channeling == 0 && !Local.IsEating)
+        {
+            if (Local.Race == "Night Elf" && Spell.Instance.IsSpellReady("Shadowmeld"))
+            {
+                SelectFood();
+            }
+            return;
+               
+        }
+        }
     }
 
 
@@ -251,5 +332,6 @@ public class Rogue : CustomClass
     public override int Version { get { return 1; } }
     public override Enums.ClassId Class { get { return Enums.ClassId.Rogue; } }
     public override bool SuppressBotMovement { get { return false; } }
-    public override float CombatDistance { get { return 5.0f; } }
+    //public override float CombatDistance { get { return 5.0f; } }
+    
 }
