@@ -36,10 +36,15 @@ public class DruidFeral : CustomClass
     public override bool Load() { return true; }
 
     //Credits for the logger to baka
+
     public static void DebugMsg(string String)
     {
-        ZzukBot.ExtensionMethods.StringExtensions.Log("Debug: " + String, "DruidLog.txt", true);
-        Lua.Instance.Execute("DEFAULT_CHAT_FRAME:AddMessage(\"DEBUG: " + String + "\");");
+        bool writeDebugLog = true;
+        bool printDebugToChat = false;
+        if (writeDebugLog)
+            ZzukBot.ExtensionMethods.StringExtensions.Log("Debug: " + String, "DruidLog.txt", true);
+        if (printDebugToChat)
+            Lua.Instance.Execute("DEFAULT_CHAT_FRAME:AddMessage(\"DEBUG: " + String + "\");");
     }
 
     private string[] foodNames =
@@ -319,10 +324,10 @@ public class DruidFeral : CustomClass
             DebugMsg("We are a Cat! going for DPS.");
             CombatDistance = 5;
             DebugMsg("Current CombatDistance: " + CombatDistance);
-            if (!Target.GotDebuff("Faerie Fire (Feral)") && Spell.Instance.GetSpellRank("Faerie Fire (Feral)") != 0 && UseBleed())
+            if (!Target.GotDebuff("Faerie Fire (Feral)") && Spell.Instance.GetSpellRank("Faerie Fire (Feral)") != 0)
                 Lua.Instance.Execute("CastSpellByName('Faerie Fire (Feral)()');");
             Spell.Instance.Attack();
-            if ((FBiteEvaluation() && energy >= 35) || (combopoints == 5 && energy >= 35))
+            if ((Target.HealthPercent <= 35 && energy >= 35) || (combopoints == 5 && energy >= 35))
                 Spell.Instance.Cast("Ferocious Bite");
             if (energy > 30 && !Local.GotAura("Tiger's Fury") && Spell.Instance.GetSpellRank("Tiger's Fury") != 0)
                 Spell.Instance.Cast("Tiger's Fury");
@@ -361,16 +366,23 @@ public class DruidFeral : CustomClass
          *  MinDamage: change MaxDamageRank with MinDamageRank respectively.
          *  Source: forum.nostalrius.org/viewtopic.php?f=41&t=27786
          *  To be more liberal with FB usage, only going to consider max damage rolls and no armor reduction.
+         *  Bugged right now due to GetSpellRank.
+         *  Possible workaround: assume FB rank based on player level. won't use this for now.
          */
         int fbRank = Spell.GetSpellRank("Ferocious Bite");
         int cp = Local.ComboPoints;
         int energy = Local.Energy;
         DebugMsg("Calculation values for FB Damage - Rank: " + fbRank + ", energy: " + energy);
-        double fbDamage = (feroBiteDamage[fbRank][cp] + feroBiteDamage[fbRank][0]);
-        DebugMsg("Calculated FB Damage: " + fbDamage + " , current target health: " + Target.Health);
-        if (Target.Health < fbDamage)
-            return true;
+        if (energy >= 35 && Spell.GetSpellRank("Ferocious Bite") != 0 && cp > 0)
+        {
+            double fbDamage = (feroBiteDamage[fbRank][cp] + feroBiteDamage[fbRank][0]);
+            DebugMsg("Calculated FB Damage: " + fbDamage + " , current target health: " + Target.Health);
+            if (Target.Health < fbDamage)
+                return true;
+        }
         else return false;
+
+        return false;
     }
 
     public override void OnPull()
@@ -407,10 +419,12 @@ public class DruidFeral : CustomClass
         DebugMsg("We are in Rest now. checking what to do..");
         if (Spell.IsShapeShifted)
             Spell.CancelShapeshift();
-        OocHeal();
+        if (Local.HealthPercent <= 35 && Local.ManaPercent >= 60)
+            OocHeal();
+        //health / mana conditions for drinking should be taken out. will do soon enough.
         if (Local.HealthPercent < 50 || Local.ManaPercent < 50)
         {
-            if (Local.Channeling == 0 && !Local.IsEating && !Local.IsDrinking)
+            if (Local.Channeling == 0 && !Local.IsEating || !Local.IsDrinking)
             {
                 DebugMsg("We will now look for food and eat / drink..");
                 if (Local.Race == "Night Elf" && Spell.Instance.IsSpellReady("Shadowmeld"))
@@ -430,9 +444,6 @@ public class DruidFeral : CustomClass
             if (Spell.Instance.GetSpellRank("Rejuvenation") != 0)
                 Spell.Instance.Cast("Rejuvenation");
         }
-        if (Local.HealthPercent <= 50)
-            Spell.Instance.Cast("Healing Touch");
-
         if (Local.ManaPercent <= 50 && Spell.Instance.GetSpellRank("Innervate") != 0 && Spell.Instance.IsSpellReady("Innervate"))
             Spell.Instance.Cast("Innervate");
 
