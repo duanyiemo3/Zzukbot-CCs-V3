@@ -14,10 +14,12 @@ public class AffLock : CustomClass
     private void SelectHPotion()
     {
         string potToUse = Inventory.Instance.GetLastItem(potNames);
-        WoWItem Potion = Inventory.Instance.GetItem(potToUse);
-       
-        if (Local.HealthPercent <= 20 && Potion != null)
-            Potion.Use();
+        if (potToUse != "")
+        {
+            WoWItem Potion = Inventory.Instance.GetItem(potToUse);
+            if (Local.HealthPercent <= 20 && Potion.CanUse())
+                Potion.Use();
+        }
     }
 
     private string[] potNames = 
@@ -26,20 +28,24 @@ public class AffLock : CustomClass
     };
 
     private void SelectMPotion()
-    {
+    {// to be added
 
     }
 
     private string[] potNamesMana =
-    {
+    { //to be added
 
     };
 
     private void SelectHealthstone()
     {
         string healthstoneToUse = Inventory.Instance.GetLastItem(healthstoneList);
-        WoWItem Healthstone = Inventory.Instance.GetItem(healthstoneToUse);
-        Healthstone.Use();
+        if (healthstoneToUse != "")
+        {
+            WoWItem Healthstone = Inventory.Instance.GetItem(healthstoneToUse);
+            if (Healthstone.CanUse())
+                Healthstone.Use();
+        }
     }
 
     private string[] healthstoneList =
