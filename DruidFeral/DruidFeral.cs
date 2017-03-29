@@ -39,7 +39,7 @@ public class DruidFeral : CustomClass
 
     public static void DebugMsg(string String)
     {
-        bool writeDebugLog = true;
+        bool writeDebugLog = false;
         bool printDebugToChat = false;
         if (writeDebugLog)
             ZzukBot.ExtensionMethods.StringExtensions.Log("Debug: " + String, "DruidLog.txt", true);
@@ -308,9 +308,9 @@ public class DruidFeral : CustomClass
                 Spell.Instance.Cast("Bash");
             if (Spell.Instance.GetSpellRank("Frenzied Regeneration") != 0 && Spell.Instance.IsSpellReady("Frenzied Regeneration") && Local.HealthPercent <= 60)
                 Spell.Instance.Cast("Frenzied Regeneration");
-            if (Attackers.Count >= 2 && rage >= 40 && Spell.Instance.GetSpellRank("Swipe") != 0)
+            if (Attackers.Count >= 2 && (rage >= 40 || Local.GotAura("Clearcasting")) && Spell.Instance.GetSpellRank("Swipe") != 0)
                 Spell.Instance.Cast("Swipe");
-            if (rage >= 40)
+            if (rage >= 40 || Local.GotAura("Clearcasting"))
                 Spell.Instance.CastWait("Maul", 3000);
         }
         else if (Spell.Instance.GetSpellRank("Cat Form") != 0 && Attackers.Count < 2)
@@ -331,9 +331,9 @@ public class DruidFeral : CustomClass
                 Spell.Instance.Cast("Ferocious Bite");
             if (energy > 30 && !Local.GotAura("Tiger's Fury") && Spell.Instance.GetSpellRank("Tiger's Fury") != 0)
                 Spell.Instance.Cast("Tiger's Fury");
-            //if (combopoints < 5 && energy > 30 && !Target.GotDebuff("Rake") && UseBleed() && Spell.Instance.GetSpellRank("Rake") != 0 && !FBiteEvaluation())
-            //    Spell.Instance.Cast("Rake");
-            if (combopoints < 5 && energy > 40)
+            if (combopoints < 5 && energy > 30 && !Target.GotDebuff("Rake") && UseBleed() && Spell.Instance.GetSpellRank("Rake") != 0)
+                Spell.Instance.Cast("Rake");
+            if (combopoints < 5 && (energy > 40 || Local.GotAura("Clearcasting")))
                 Spell.Instance.Cast("Claw");
 
         }
