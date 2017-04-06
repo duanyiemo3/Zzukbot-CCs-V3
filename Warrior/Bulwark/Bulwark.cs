@@ -222,20 +222,14 @@ public class Bulwark : CustomClass
     
         
     }
+    
+    private bool CanCharge()
+    {
+        return Spell.GetSpellRank("Charge") != 0 && Spell.IsSpellReady("Charge") && Target.DistanceToPlayer > 8;
+    }
 
-    public override void OnPull()
-    {//TBD ranged pull.
-        if (Target.DistanceToPlayer > 8 && Spell.GetSpellRank("Charge") != 0)
-        {
-            CombatDistance = 9;
-            Spell.Cast("Charge");
-        }
-        else
-        {
-            CombatDistance = 4;
-            Spell.Instance.Attack();
-        }
-    } 
+    public override void OnPull() => CanCharge() > 8 ? Spell.Cast("Charge") : Spell.Instance.Attack();
+    
     public override void OnRest()
     {
         //Bandage
@@ -267,7 +261,7 @@ public class Bulwark : CustomClass
     public override int Version { get { return 1; } }
     public override Enums.ClassId Class { get { return Enums.ClassId.Warrior; } }
     public override bool SuppressBotMovement { get { return false; } }
-    //public override float CombatDistance { get { return 5.0f; } }
+    public override float CombatDistance => Spell.GetSpellRank("Charge") != 0 && Spell.IsSpellReady("Charge") ? 9 : 4;
 
 }
 
